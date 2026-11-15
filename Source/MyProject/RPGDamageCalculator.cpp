@@ -35,8 +35,8 @@ int32 UDamageCalculator::CalculateFinalDamage(AActor* Attacker, AActor* Defender
     const FMonsterDataRow& AtkStat = AttackerCharacter->StatComponent->MonsterStat;
     const FMonsterDataRow& DefStat = DefenderCharacter->StatComponent->MonsterStat;
 
-    // Physical skills scale off STR, elemental/magic skills scale off MAG.
-    const bool bIsPhysical = SkillData.ElementType == FName(TEXT("Physical"));
+    // Physical skills (Slash/Strike) scale off STR, elemental/magic skills scale off MAG.
+    const bool bIsPhysical = SkillData.ElementType == FName(TEXT("Slash")) || SkillData.ElementType == FName(TEXT("Strike"));
     const int32 AttackPower = bIsPhysical ? AtkStat.STR : AtkStat.MAG;
 
     float RawDamage = static_cast<float>(SkillData.Power) + (AttackPower * 0.5f) - (DefStat.END * 0.5f);
@@ -51,7 +51,8 @@ int32 UDamageCalculator::CalculateFinalDamage(AActor* Attacker, AActor* Defender
         RawDamage *= 0.5f;
     }
 
-    const float CritChance = SkillData.BaseCrit + (AtkStat.LUK * 0.1f);
+    // BaseCrit from CSV is a ratio (0.05 = 5%); convert to percentage points to compare against the 0~100 roll.
+    const float CritChance = (SkillData.BaseCrit * 100.f) + (AtkStat.LUK * 0.1f);
     if (FMath::FRandRange(0.f, 100.f) < CritChance)
     {
         RawDamage *= 1.5f;

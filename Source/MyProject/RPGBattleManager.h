@@ -90,6 +90,11 @@ public:
     UFUNCTION(BlueprintCallable, Category = "RPG|Battle")
     void BeginFieldEncounter(FName StageID, FName BattleID, AFieldEncounter* SourceEncounter);
 
+    // True while this battle came from the tutorial FieldEncounter (StageID == "Tutorial").
+    // UI (e.g. UBattleHUD's TutorialText) and HandleVictory's save logic use this.
+    UFUNCTION(BlueprintCallable, Category = "RPG|Battle")
+    bool IsTutorialBattle() const;
+
     // Called by ARPGPlayerController::ConfirmAction and AMonsterAIController::TakeBattleTurn
     // once the acting combatant has chosen a skill + target. Executes it (if valid) and
     // advances the turn queue either way, so a bad/locked choice never stalls the battle.

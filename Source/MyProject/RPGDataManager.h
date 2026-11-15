@@ -81,6 +81,11 @@ public:
     UFUNCTION(BlueprintCallable, Category = "RPG|Save")
     void SaveProgress(FName EquippedCoreID, int32 ClearedStage);
 
+    // Records the tutorial battle as cleared (drives the "TUTORIAL_CLEAR" quest gate),
+    // carrying forward whatever EquippedCoreID/ClearedStage was already saved.
+    UFUNCTION(BlueprintCallable, Category = "RPG|Save")
+    void SaveTutorialCleared();
+
     UFUNCTION(BlueprintCallable, Category = "RPG|Save")
     bool LoadProgress();
 

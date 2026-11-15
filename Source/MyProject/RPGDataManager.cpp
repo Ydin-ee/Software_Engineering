@@ -8,8 +8,8 @@ namespace
     const FString RPGSaveSlotName = TEXT("RPGSaveSlot");
     const int32 RPGSaveUserIndex = 0;
 
-    // Quest format is "STAGE<N>_CLEAR" or "None" (see FSkillDataRow::Quest).
-    bool IsQuestConditionMet(FName Quest, int32 ClearedStage)
+    // Quest format is "STAGE<N>_CLEAR", "TUTORIAL_CLEAR", or "None" (see FSkillDataRow::Quest).
+    bool IsQuestConditionMet(FName Quest, int32 ClearedStage, bool bTutorialCleared)
     {
         if (Quest.IsNone())
         {
@@ -20,6 +20,11 @@ namespace
         if (QuestString.Equals(TEXT("None"), ESearchCase::IgnoreCase))
         {
             return true;
+        }
+
+        if (QuestString.Equals(TEXT("TUTORIAL_CLEAR"), ESearchCase::IgnoreCase))
+        {
+            return bTutorialCleared;
         }
 
         if (QuestString.StartsWith(TEXT("STAGE"), ESearchCase::IgnoreCase))
@@ -143,6 +148,8 @@ void URPGDataManager::SaveProgress(FName EquippedCoreID, int32 ClearedStage)
 
     NewSave->EquippedCoreID = EquippedCoreID;
     NewSave->ClearedStage = ClearedStage;
+    // Carry forward the existing tutorial-clear flag so this save doesn't wipe it out.
+    NewSave->bTutorialCleared = CurrentSaveGame ? CurrentSaveGame->bTutorialCleared : false;
 
     if (UGameplayStatics::SaveGameToSlot(NewSave, RPGSaveSlotName, RPGSaveUserIndex))
     {
@@ -153,6 +160,33 @@ void URPGDataManager::SaveProgress(FName EquippedCoreID, int32 ClearedStage)
     else
     {
         UE_LOG(LogTemp, Error, TEXT("[Save] Failed to save progress."));
+    }
+}
+
+void URPGDataManager::SaveTutorialCleared()
+{
+    URPGSaveGame* NewSave = Cast<URPGSaveGame>(UGameplayStatics::CreateSaveGameObject(URPGSaveGame::StaticClass()));
+    if (!NewSave)
+    {
+        return;
+    }
+
+    // Carry forward whatever progress was already saved; only bTutorialCleared changes.
+    if (CurrentSaveGame)
+    {
+        NewSave->EquippedCoreID = CurrentSaveGame->EquippedCoreID;
+        NewSave->ClearedStage = CurrentSaveGame->ClearedStage;
+    }
+    NewSave->bTutorialCleared = true;
+
+    if (UGameplayStatics::SaveGameToSlot(NewSave, RPGSaveSlotName, RPGSaveUserIndex))
+    {
+        CurrentSaveGame = NewSave;
+        UE_LOG(LogTemp, Warning, TEXT("[Save] Tutorial cleared."));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("[Save] Failed to save tutorial clear."));
     }
 }
 
@@ -196,7 +230,8 @@ bool URPGDataManager::IsSkillUnlocked(FName SkillID) const
     }
 
     const int32 ClearedStage = CurrentSaveGame ? CurrentSaveGame->ClearedStage : 0;
-    return IsQuestConditionMet(Found->Quest, ClearedStage);
+    const bool bTutorialCleared = CurrentSaveGame ? CurrentSaveGame->bTutorialCleared : false;
+    return IsQuestConditionMet(Found->Quest, ClearedStage, bTutorialCleared);
 }
 
 void URPGDataManager::GetAllCoreIDs(TArray<FName>& OutCoreIDs) const
@@ -223,7 +258,8 @@ bool URPGDataManager::IsCoreUnlocked(FName CoreID) const
     }
 
     const int32 ClearedStage = CurrentSaveGame ? CurrentSaveGame->ClearedStage : 0;
-    return IsQuestConditionMet(Found->Quest, ClearedStage);
+    const bool bTutorialCleared = CurrentSaveGame ? CurrentSaveGame->bTutorialCleared : false;
+    return IsQuestConditionMet(Found->Quest, ClearedStage, bTutorialCleared);
 }
 
 bool URPGDataManager::GetCharacterData(FName CharacterID, FCharacterDataRow& OutRow)

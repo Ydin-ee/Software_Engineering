@@ -33,6 +33,19 @@ void UBattleHUD::InitializeForBattle(ARPGBattleManager* InBattleManager)
         TurnQueueWidget->BindToBattleManager(BoundBattleManager);
     }
 
+    if (TutorialText)
+    {
+        if (BoundBattleManager->IsTutorialBattle())
+        {
+            TutorialText->SetText(TutorialMessage);
+            TutorialText->SetVisibility(ESlateVisibility::Visible);
+        }
+        else
+        {
+            TutorialText->SetVisibility(ESlateVisibility::Collapsed);
+        }
+    }
+
     RefreshStatusText();
 }
 

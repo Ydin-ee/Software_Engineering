@@ -363,13 +363,15 @@ void ARPGBattleManager::StartCurrentActorTurn()
         SetBattleState(ERPGBattleState::State_PlayerTurn);
         UE_LOG(LogTemp, Warning, TEXT("[BattleManager] -> %s's turn."), *Player->GetName());
 
-        if (ARPGPlayerController* PC = Cast<ARPGPlayerController>(Player->GetController()))
+        // A single player controller commands whichever party member's turn it is - allies placed
+        // in the level (e.g. PC_002) have no controller of their own, so Player->GetController() would skip them.
+        if (ARPGPlayerController* PC = Cast<ARPGPlayerController>(UGameplayStatics::GetPlayerController(GetWorld(), 0)))
         {
             PC->BeginSkillSelection(this, Player, GetLivingEnemyTargets());
         }
         else
         {
-            UE_LOG(LogTemp, Error, TEXT("[BattleManager] %s has no ARPGPlayerController, skipping turn."), *Player->GetName());
+            UE_LOG(LogTemp, Error, TEXT("[BattleManager] No ARPGPlayerController found, skipping %s's turn."), *Player->GetName());
             AdvanceTurn();
         }
     }
@@ -481,10 +483,25 @@ void ARPGBattleManager::HandleVictory()
         HandleStageCleared(BossStageNumber);
     }
 
+    if (IsTutorialBattle())
+    {
+        // Must run before ReturnPartyToField(), which clears PendingSourceEncounter.
+        UGameInstance* GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+        if (URPGDataManager* DataManager = GI ? GI->GetSubsystem<URPGDataManager>() : nullptr)
+        {
+            DataManager->SaveTutorialCleared();
+        }
+    }
+
     if (PendingSourceEncounter)
     {
         ReturnPartyToField();
     }
+}
+
+bool ARPGBattleManager::IsTutorialBattle() const
+{
+    return PendingSourceEncounter && PendingSourceEncounter->StageID == FName(TEXT("Tutorial"));
 }
 
 void ARPGBattleManager::HandleStageCleared(int32 ClearedStageNumber)

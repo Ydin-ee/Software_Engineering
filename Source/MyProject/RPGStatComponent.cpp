@@ -28,6 +28,16 @@ void URPGStatComponent::ApplyCoreBonus(const FCoreDataRow& CoreData)
     MonsterStat.SPD += CoreData.BonusSPD;
     MonsterStat.LUK += CoreData.BonusLUK;
 
+    // The equipped Core decides Weak/Resist; an empty or "None" Core value keeps BaseStat's own.
+    if (!CoreData.Weak.IsEmpty() && !CoreData.Weak.Equals(TEXT("None"), ESearchCase::IgnoreCase))
+    {
+        MonsterStat.Weak = CoreData.Weak;
+    }
+    if (!CoreData.Resist.IsEmpty() && !CoreData.Resist.Equals(TEXT("None"), ESearchCase::IgnoreCase))
+    {
+        MonsterStat.Resist = CoreData.Resist;
+    }
+
     CurrentHP = FMath::Min(CurrentHP, MonsterStat.MaxHP);
     CurrentSP = FMath::Min(CurrentSP, MonsterStat.MaxSP);
 }

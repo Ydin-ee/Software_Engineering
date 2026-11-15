@@ -31,6 +31,16 @@ public:
     UPROPERTY(meta = (BindWidgetOptional))
     UTextBlock* BattleResultText;
 
+    // Shown only during the tutorial battle (ARPGBattleManager::IsTutorialBattle),
+    // Collapsed otherwise. Optional so the widget doesn't need this yet to compile.
+    UPROPERTY(meta = (BindWidgetOptional))
+    UTextBlock* TutorialText;
+
+    // Control-guide copy for TutorialText, filled in by the widget Blueprint rather
+    // than hardcoded here.
+    UPROPERTY(EditAnywhere, Category = "RPG|UI")
+    FText TutorialMessage;
+
     UPROPERTY(meta = (BindWidgetOptional))
     UCommandMenu* CommandMenuWidget;
 
