@@ -1,0 +1,11 @@
+﻿Name,MonsterName,MaxHP,STR,MAG,END,SPD,LUK,Weak,Resist,DropEXP,MonsterSkills
+MOB_001,훈련용 슬라임,80,5,3,3,5,1,Fire,None,10,"SK_M01,SK_M03"
+MOB_002,얼어붙은 골렘,250,12,5,20,5,2,Fire,"Ice, Strike",25,"SK_M01,SK_M04"
+MOB_003,스테이지1 보스,600,30,15,25,10,10,Fire,"Ice, Slash",150,"SK_M01,SK_B01,SK_B02"
+MOB_004,떠도는 뇌전구,150,8,20,8,15,8,Grass,Elec,30,"SK_M01,SK_M05"
+MOB_005,불타는 시계,200,15,15,10,10,5,Ice,"Fire, Slash",40,"SK_M01,SK_M03"
+MOB_006,스테이지2 보스,1500,15,30,30,15,10,"Slash, Strike","Fire, Ice, Elec, Grass",250,"SK_M01,SK_B03,SK_B04"
+MOB_007,숲의 정령,120,10,25,15,20,10,Elec,"Grass, Slash, Strike",50,"SK_M01,SK_M06,SK_M10"
+MOB_008,무사 검객,500,36,10,25,15,15,None,None,100,"SK_M02,SK_M07,SK_M08"
+MOB_009,대현자 오우거,380,10,38,18,12,5,Strike,"Fire, Ice, Elec, Grass",100,"SK_M01,SK_M03,SK_M04,SK_M05,SK_M06,SK_M09,SK_M10"
+MOB_010,스테이지3 보스,3000,44,44,44,24,14,None,"Slash, Strike",350,"SK_M02,SK_B05,SK_B06"

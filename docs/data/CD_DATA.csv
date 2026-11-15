@@ -1,0 +1,5 @@
+﻿CoreID,CoreName,CoreElement,BonusHP,BonusSP,BonusSTR,BonusMAG,BonusEND,BonusSPD,BonusLUK,Weak,Resist,CoreSkills,Quest
+COR_001,검사의 혼,Slash,30,0,15,0,5,5,5,Elec,None,"SK_001,SK_003",None
+COR_002,화염술사의 코어,Fire,0,30,0,15,10,10,8,Grass,Fire,"SK_001,SK_003,SK_005,SK_006",Tutorial
+COR_003,얼음 기사의 결속,Ice,20,20,8,12,12,8,10,Fire,Ice,"SK_001,SK_003,SK_007,SK_008",STAGE1_CLEAR
+COR_004,기계 심장,Elec,25,25,15,15,15,15,15,Ice,Elec,"SK_001,SK_003,SK_009,SK_010",STAGE2_CLEAR

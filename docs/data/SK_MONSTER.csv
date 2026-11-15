@@ -1,0 +1,17 @@
+﻿SkillID,SkillName,ElementType,CostType,CostValue,Power,BaseCrit,TargetType,Status,StatusChance,Description
+SK_M01,막치기,Strike,None,0,15,0,Ally_Single,None,0,기본적인 타격
+SK_M02,썰기,Slash,None,0,15,0,Ally_Single,None,0,기본적인 참격
+SK_M03,아기,Fire,None,0,15,0,Ally_Single,None,0,아군 1체에 화염 속성 소 데미지
+SK_M04,부흐,Ice,None,0,15,0,Ally_Single,None,0,아군 1체에 빙결 속성 소 데미지
+SK_M05,지오,Elec,None,0,15,0,Ally_Single,None,0,아군 1체에 전격 속성 소 데미지
+SK_M06,갈,Grass,None,0,15,0,Ally_Single,None,0,아군 1체에 질풍 속성 소 데미지
+SK_M07,슬래시,Slash,None,0,35,0.05,Ally_All,None,0,"아군 전체에 참격 속성 소 데미지, 크리티컬 확률 낮음"
+SK_M08,소닉 펀치,Strike,None,0,60,0.05,Ally_Single,None,0,"아군 1체에 타격 속성 중 데미지, 크리티컬 확률 낮음"
+SK_M09,블리자드 에지,Ice,None,0,60,0,Ally_Single,Freeze,0.15,아군 1체에 빙결 속성 중 데미지 및 낮은 확률 동결
+SK_M10,디아,Heal,None,0,30,0,Enemy_Single,None,0,적 1체 HP회복 소
+SK_B01,절대 영도,Ice,None,0,40,0,Ally_Single,Freeze,0.2,[스테이지1 보스] 아군 1체 빙결 데미지 및 낮은 확률 동결
+SK_B02,무자비한 분쇄,Strike,None,0,65,0.05,Ally_Single,None,0,"[스테이지1 보스] 아군 1체 타격 데미지, 크리티컬 확률 낮음"
+SK_B03,대마법: 재앙,Fire,None,0,55,0,Ally_All,Burn,0.2,"[스테이지2 보스] 아군 전체 화염 데미지, 낮은 확률 화상"
+SK_B04,진공 칼날,Grass,None,0,75,0,Ally_Single,None,0,[스테이지2 보스] 아군 1체 질풍 대미지
+SK_B05,대회전,Strike,None,0,60,0.15,Ally_All,None,0,"[스테이지3 보스] 아군 전체 타격 데미지, 크리티컬 확률 중간"
+SK_B06,낙뢰의 심판,Elec,None,0,80,0,Ally_Single,Shock,0.4,[스테이지3 보스] 아군1체 전격 데미지 및 매우 높은 확률 감전

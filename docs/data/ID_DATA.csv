@@ -1,0 +1,4 @@
+﻿ItemID,ItemName,TargetType,HealType,HealValue,Description
+ITM_001,상처약,Ally_Single,HP,30,아군 1명의 HP를 30 회복합니다
+ITM_002,마력수,Ally_Single,SP,30,아군 1명의 SP를 30 회복합니다
+ITM_003,전체 회복약,Ally_All,HP,50,아군 전체의 HP를 50 회복합니다

@@ -1,0 +1,13 @@
+﻿SkillID,SkillName,ElementType,CostType,CostValue,Power,BaseCrit,TargetType,Status,StatusChance,Description,Quest
+SK_001,기본 베기,Slash,None,0,15,0.05,Enemy_Single,None,0,"기본적인 베기, 크리티컬 확률 낮음",None
+SK_002,기본 타격,Strike,None,0,15,0.05,Enemy_Single,None,0,"기본적인 타격, 크리티컬 확률 낮음",None
+SK_003,슬래시,Slash,HP,0.125,35,0.15,Enemy_All,None,0,"적 전체에 참격 속성 소 데미지, 크리티컬 확률 중간",STAGE1_CLEAR
+SK_004,소닉 펀치,Strike,HP,0.125,60,0.15,Enemy_Single,None,0,"적 1체에 타격 속성 중 데미지, 크리티컬 확률 중간",STAGE2_CLEAR
+SK_005,아기,Fire,SP,10,35,0,Enemy_Single,Burn,0.15,적 1체에 화염 속성 소 데미지,None
+SK_006,화염 베기,Fire,SP,28,35,0,Enemy_All,Burn,0.2,적 전체에 화염 속성 소 데미지,STAGE2_CLEAR
+SK_007,부흐,Ice,SP,10,35,0,Enemy_Single,Freeze,0.15,적 1체에 빙결 속성 소 데미지,STAGE1_CLEAR
+SK_008,블리자드 에지,Ice,SP,28,60,0,Enemy_Single,Freeze,0.2,적 1체에 빙결 속성 중 데미지,STAGE2_CLEAR
+SK_009,지오,Elec,SP,10,35,0,Enemy_Single,Shock,0.15,적 1체에 전격 속성 소 데미지,STAGE2_CLEAR
+SK_010,라이트닝 스피어,Elec,SP,28,60,0,Enemy_Single,Shock,0.2,적 1체에 전격 속성 중 데미지,STAGE2_CLEAR
+SK_011,갈,Grass,SP,10,35,0,Enemy_Single,None,0,적 1체에 질풍 속성 소 데미지,STAGE1_CLEAR
+SK_012,디아,Heal,SP,10,40,0,Ally_Single,None,0,아군 1체 HP회복 소,STAGE1_CLEAR
