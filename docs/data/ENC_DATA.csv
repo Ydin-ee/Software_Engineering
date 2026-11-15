@@ -1,7 +1,7 @@
 ﻿EncounterID,Stage,Battle,Mob,Number
 ENC_001,Stage1,Battle1,MOB_001,2
-ENC_002,Stage1,Battle2,MOB_001,3
-ENC_003,Stage1,Battle3,MOB_002,2
+ENC_002,Stage1,Battle2,MOB_002,2
+ENC_003,Stage1,Battle3,MOB_001|MOB_002,1|2
 ENC_004,Stage1,Battle4,MOB_002,3
 ENC_005,Stage1,Battle5,MOB_001|MOB_002,2|2
 ENC_006,Stage2,Battle1,MOB_004,2
@@ -14,3 +14,5 @@ ENC_012,Stage3,Battle2,MOB_007,3
 ENC_013,Stage3,Battle3,MOB_008,1
 ENC_014,Stage3,Battle4,MOB_009,1
 ENC_015,Stage3,Battle5,MOB_008|MOB_009,1|1
+ENC_016,Tutorial,Battle1,MOB_001,1
+ENC_017,Stage1,Boss,MOB_003,1
