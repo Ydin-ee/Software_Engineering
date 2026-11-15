@@ -7,6 +7,24 @@
 
 ---
 
+## 2026-11-15 (3차) — 동료 턴 코어 교체 버그
+
+### 버그 수정
+
+- **동료 턴에 코어 교체 가능 (FR-10)** — `CommandMenu.cpp`, `RPGPlayerController.cpp`
+  - 기존: 동료(PC_002, PC_DATA `EquippedCore = None`) 차례에도 커맨드 메뉴에 코어 목록이 나오고 누를 수 있었음. 누르면 `RequestChangeCore` → `ChangeCore`가 동료에게 코어를 장착해 `SkillPool`이 코어 스킬로 바뀜.
+  - 결정: 코어 교체는 기본 코어가 있는 캐릭터(현재 PC_001)만 가능.
+  - `UCommandMenu::RebuildCoreList`: 행동 캐릭터의 `EquippedCoreID`가 `None`이면 코어 목록을 만들지 않는다(비워 둠).
+  - `ARPGPlayerController::RequestChangeCore`: 행동 캐릭터의 `EquippedCoreID`가 `None`이면 경고 로그만 남기고 반환. `ChangeCore`를 호출하지 않고 `bHasChangedCoreThisTurn`도 소모하지 않는다.
+  - 기존 함수·변수 이름은 바꾸지 않음.
+
+### 영향받는 산출 문서
+
+- `02_design/interface_specification.md` — §8 `RebuildCoreList` 행 추가, §9 `ARPGPlayerController::RequestChangeCore` 추가.
+- `03_test.md` — TC-05a(동료 차례에 코어 목록 숨김, FR-10) 추가.
+
+---
+
 ## 2026-11-15 (2차) — FINISH_TASKS T5~T8, StableSort
 
 ### 기능 추가 / 버그 수정

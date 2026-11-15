@@ -110,7 +110,16 @@
 | 멤버/함수 | 설명 |
 |---|---|
 | `UCommandMenu::RebuildSkillList` *(private)* | 행동 캐릭터의 `AvailableSkills`로 버튼을 만든다. **2026-11-15 (FR-07)**: 버튼 활성 조건을 `IsSkillUnlocked && CanAffordSkill`로 변경. 비용 부족 스킬은 잠긴 스킬처럼 `SetIsEnabled(false)`만 하고 라벨은 바꾸지 않는다. |
+| `UCommandMenu::RebuildCoreList` *(private)* | `CoreListContainer`에 모든 코어 버튼을 만든다(잠긴 코어는 "(Locked)" 비활성). 이번 턴에 이미 교체했으면(`bHasChangedCoreThisTurn`) 비워 둔다. **2026-11-15 (FR-10)**: 행동 캐릭터의 `EquippedCoreID`가 `None`(동료, PC_002)이면 목록을 만들지 않고 비워 둔다. 코어 교체는 기본 코어가 있는 캐릭터(PC_001)만 가능. |
 | `UBattleHUD::TutorialText` *(UPROPERTY, BindWidgetOptional)* | 튜토리얼 안내 텍스트 위젯. 위젯 블루프린트에 없어도 빌드·실행이 깨지지 않는다. |
 | `UBattleHUD::TutorialMessage` *(UPROPERTY, EditAnywhere FText)* | `TutorialText`에 표시할 문구. 위젯 블루프린트에서 입력(C++ 하드코딩 없음). |
 | `UBattleHUD::InitializeForBattle` | 게임 시작 시 `ARPGPlayerController::BeginPlay`에서 **한 번만** 호출된다. 델리게이트 바인딩 후 `TutorialText`를 Collapsed로 초기화만 한다. |
 | `UBattleHUD::HandleBattleStateChanged` | `OnBattleStateChanged` 수신. `BattleResultText`는 `State_BattleEnd`에서 VICTORY/DEFEAT 표시. **2026-11-15 (NFR-08)**: `TutorialText`는 전투 중 상태(`State_CalculateTurn`/`State_PlayerTurn`/`State_EnemyTurn`)이고 `BoundBattleManager->IsTutorialBattle()`이면 `TutorialMessage`를 넣고 Visible, 그 외(`State_Wait`/`State_BattleEnd`)는 Collapsed. (처음엔 `InitializeForBattle`에서 판정했는데, 그 시점은 전투 전이라 항상 false여서 여기로 옮김.) |
+
+---
+
+## 9. ARPGPlayerController (RPGPlayerController.h/.cpp)
+
+| 함수 | 매개변수 | 반환 | 설명 |
+|---|---|---|---|
+| `RequestChangeCore` | `FName NewCoreID` | `void` | 커맨드 메뉴의 코어 버튼(`OnCoreChosen`)에서 호출. 턴당 1회(`bHasChangedCoreThisTurn`), 턴을 소모하지 않는다. **2026-11-15 (FR-10)**: 행동 캐릭터(`ActingCharacter`)의 `EquippedCoreID`가 `None`이면 경고 로그만 남기고 반환한다. `ChangeCore`를 호출하지 않고 `bHasChangedCoreThisTurn`도 그대로 둔다(교체 횟수 미소모). 성공 시 `ChangeCore` → `bHasChangedCoreThisTurn = true` → `ShowCommandMenu`로 메뉴 재생성. |

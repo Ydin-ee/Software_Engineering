@@ -144,6 +144,13 @@ void UCommandMenu::RebuildCoreList()
         return;
     }
 
+    // Core swap is only for characters that start with a core (PC_001, FR-10).
+    // Companions (EquippedCoreID == None) keep their SkillPool, so hide the list for them.
+    if (!ActingCharacter || ActingCharacter->EquippedCoreID.IsNone())
+    {
+        return;
+    }
+
     UGameInstance* GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
     URPGDataManager* DataManager = GI ? GI->GetSubsystem<URPGDataManager>() : nullptr;
     if (!DataManager)

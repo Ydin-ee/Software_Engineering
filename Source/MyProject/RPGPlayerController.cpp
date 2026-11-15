@@ -90,6 +90,14 @@ void ARPGPlayerController::RequestChangeCore(FName NewCoreID)
         return;
     }
 
+    // Only characters that start with a core (PC_001, FR-10) may swap. A companion with
+    // EquippedCoreID == None keeps its SkillPool, and the per-turn swap is not consumed.
+    if (ActingCharacter->EquippedCoreID.IsNone())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[PlayerController] %s has no core - core change ignored."), *ActingCharacter->GetName());
+        return;
+    }
+
     ActingCharacter->ChangeCore(NewCoreID);
     bHasChangedCoreThisTurn = true;
 
