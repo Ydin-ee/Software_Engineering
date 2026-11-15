@@ -44,19 +44,35 @@ bool URPGSkillComponent::CanAffordSkill(FName SkillID) const
 
     if (SkillData.CostType == FName(TEXT("SP")))
     {
-        const int32 SPCost = FMath::RoundToInt(SkillData.CostValue);
-        return Stat->CurrentSP >= SPCost;
+        return Stat->CurrentSP >= GetSkillCost(SkillData);
     }
 
     if (SkillData.CostType == FName(TEXT("HP")))
     {
         // Strictly greater: paying the exact remaining HP would drop the caster.
-        const int32 HPCost = FMath::RoundToInt(SkillData.CostValue * Stat->MonsterStat.MaxHP);
-        return Stat->CurrentHP > HPCost;
+        return Stat->CurrentHP > GetSkillCost(SkillData);
     }
 
     // "None" or any other cost type: always affordable.
     return true;
+}
+
+int32 URPGSkillComponent::GetSkillCost(const FSkillDataRow& SkillData) const
+{
+    if (SkillData.CostType == FName(TEXT("SP")))
+    {
+        return FMath::RoundToInt(SkillData.CostValue);
+    }
+
+    if (SkillData.CostType == FName(TEXT("HP")))
+    {
+        // CostValue is a fraction of the owner's current MaxHP (e.g. 0.125 -> 12.5%).
+        const ARPGCharacterBase* OwnerCharacter = Cast<ARPGCharacterBase>(GetOwner());
+        const int32 MaxHP = (OwnerCharacter && OwnerCharacter->StatComponent) ? OwnerCharacter->StatComponent->MonsterStat.MaxHP : 0;
+        return FMath::RoundToInt(SkillData.CostValue * MaxHP);
+    }
+
+    return 0;
 }
 
 bool URPGSkillComponent::ExecuteSkill(AActor* Target, FName SkillID)
@@ -125,13 +141,11 @@ bool URPGSkillComponent::ExecuteSkill(AActor* Target, FName SkillID)
 
         if (SkillData.CostType == FName(TEXT("SP")))
         {
-            const int32 SPCost = FMath::RoundToInt(SkillData.CostValue);
-            AttackerStat->CurrentSP -= SPCost;
+            AttackerStat->CurrentSP -= GetSkillCost(SkillData);
         }
         else if (SkillData.CostType == FName(TEXT("HP")))
         {
-            const int32 HPCost = FMath::RoundToInt(SkillData.CostValue * AttackerStat->MonsterStat.MaxHP);
-            AttackerCharacter->TakeRPGDamage(HPCost, FName(TEXT("SelfCost")));
+            AttackerCharacter->TakeRPGDamage(GetSkillCost(SkillData), FName(TEXT("SelfCost")));
         }
     }
 

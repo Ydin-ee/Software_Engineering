@@ -7,6 +7,61 @@
 
 ---
 
+## 2026-11-15 (5차) — 승리 후 필드 복귀 시 전투 UI 잔류 버그, 데미지 로그
+
+### 버그 수정
+
+- **승리 후 필드에서 VICTORY 문구·턴 순서 UI 잔류 (FR-02, FR-17)** — `RPGBattleManager.cpp`, `BattleHUD.cpp`
+  - 원인(코드로 확인): `CheckBattleEnd`가 `HandleVictory()`(필드 복귀를 `FadeDuration` 타이머로 예약만 함) 직후 `SetBattleState(State_BattleEnd)`를 호출하고, 타이머로 실행되는 `FinishReturnToField`는 상태를 바꾸지 않아 복귀 후에도 `CurrentState == State_BattleEnd`로 남음. `TurnQueue`도 다음 `StartBattle`까지 비워지지 않아 턴 순서 UI가 마지막 큐(제거된 몬스터 포함)를 계속 표시.
+  - 결정: 승리 후 필드 복귀가 끝나면 `State_Wait`. 패배는 지금처럼 `State_BattleEnd` 유지(게임오버 UI는 범위 밖).
+  - `ARPGBattleManager::FinishReturnToField`: 끝에 `TurnQueue.Reset()`, `CurrentTurnIndex = 0`, `OnTurnQueueChanged.Broadcast()`(턴 순서 UI 비움) 후 `SetBattleState(State_Wait)`. 이 함수는 승리 경로에서만 호출된다.
+  - `UBattleHUD::HandleBattleStateChanged`: `TurnQueueWidget`을 `State_Wait`에서 Collapsed, 그 외 상태에서 Visible. `BattleResultText`는 기존 로직대로 `State_BattleEnd` 외에는 Collapsed라 추가 수정 없음.
+
+### 테스트용 로그 추가
+
+- `UDamageCalculator::CalculateFinalDamage` — 약점 적용 시 `[Damage] WEAK: <공격자> hit <대상> with <스킬> (<속성>) x1.5`, 내성 적용 시 `[Damage] RESIST: … x0.5`, 크리티컬 시 `[Damage] CRITICAL: … x1.5 (chance N%)`. 기존 `landed a critical hit!` 문구를 `CRITICAL:` 형식으로 교체. 시그니처·델리게이트 변경 없음.
+
+### 영향받는 산출 문서
+
+- `02_design/interface_specification.md` — §1 `CalculateFinalDamage` 로그, §4 `CheckBattleEnd`·`ReturnPartyToField`/`FinishReturnToField` 행 추가, §8 `HandleBattleStateChanged`.
+- `03_test.md` — TC-03 로그 문구 갱신, TC-19(승리 후 필드 복귀 시 결과 문구·턴 순서 숨김, FR-02/FR-17), TC-19a(패배 시 DEFEAT 유지) 추가.
+- 시퀀스 다이어그램: `FinishReturnToField` → `OnTurnQueueChanged` 브로드캐스트, `SetBattleState(State_Wait)` 메시지 추가.
+
+---
+
+## 2026-11-15 (4차) — 전투 UI 표시 문구 개선 (FR-16, NFR-08)
+
+### 기능 개선
+
+- **문제**: 커맨드 메뉴와 턴 순서 UI가 ID·액터 이름(`SK_002`, `COR_001`, `RPGMonsterBase_0`, `BP_ThirdPersonCharacter_C_UAID…`)만 보여 줘서 플레이어가 스킬 속성·비용과 적의 약점을 알 수 없었음. NFR-08(약점 공략 안내), FR-16(턴 순서 표시) 근거.
+- **결정**: 표시 문구는 전부 DataTable 값(SK/MD/PC/CD_DATA)으로 만들고 수치는 하드코딩하지 않는다. 이전 T5의 "라벨 바꾸지 마"는 비용 부족 판정에 한한 것이고, 이번엔 의도적으로 라벨 형식을 바꾼다. 기존 함수·변수 이름은 유지, 아래 3개 함수만 신규.
+- **스킬 버튼** — `CommandMenu.cpp` `RebuildSkillList`: `"스킬이름 [속성] SP 10"`. 비용 `None`이면 비용 생략, HP 비용은 실제 차감량(`"HP 16"`). 잠김은 `" (잠김)"`.
+- **대상 버튼** — `CommandMenu.cpp` `RebuildTargetList`: `"몬스터이름 HP 64/80 약점:Fire 내성:Ice"`. 같은 몬스터가 여러 마리면 이름 뒤 번호(`훈련용 슬라임 1`, `2`). Weak/Resist 비어 있거나 `None`이면 `없음`.
+- **코어 버튼** — `CommandMenu.cpp` `RebuildCoreList`: CD_DATA `CoreName`, 잠김은 `"코어이름 (잠김)"`. 스킬과 통일해 `(Locked)` → `(잠김)`.
+- **턴 순서 UI** — `TurnQueueUI.cpp` `RefreshQueue`: 아군은 PC_DATA `Name`(주인공/동료1), 적은 대상 버튼과 같은 이름·번호.
+- **HUD 상태 텍스트** — `BattleHUD.cpp` `RefreshStatusText`: 아군/적 HP 줄도 같은 이름 헬퍼로 통일(FR-16).
+- **신규 함수**
+  - `URPGSkillComponent::GetSkillCost(const FSkillDataRow&) const` — `CanAffordSkill`/`ExecuteSkill`에 중복돼 있던 비용식을 묶고 라벨도 같은 값을 쓰게 함. 판정·차감 결과 동일.
+  - `ARPGBattleManager::GetCombatantDisplayName(const ARPGCharacterBase*) const` — `MonsterStat.MonsterName` + 같은 `MonsterID`가 2마리 이상일 때 `EnemyParty` 순서 번호. 세 UI가 공유해 번호가 일치.
+  - `ARPGPlayerController::GetActiveBattleManager() const` — private `ActiveBattleManager`의 읽기용 getter.
+- **한글 문구 처리**: `.cpp`가 ASCII라 `(잠김)`/`약점:`/`내성:`/`없음`은 `\u` 이스케이프로 쓰고 옆에 영어 주석(`// " (Locked)"` 등)을 달았다.
+
+### 데이터 변경 — 보스 밸런스 조정 (NFR-06 전체 클리어 가능하도록)
+
+- 시험 조정. 2인 파티(PC_001 + PC_002)가 Stage1 보스를 끝까지 클리어할 수 있도록 보스 체력과 보스 스킬 위력을 낮췄다. 10회 전체 플레이(TC-14) 결과를 보고 확정한다.
+- `docs/data/MD_DATA.csv` — `MOB_003`(스테이지1 보스) `MaxHP` **600 → 350**. 그 외 컬럼 변경 없음.
+- `docs/data/SK_MONSTER.csv` — `SK_B02`(무자비한 분쇄, Strike) `Power` **65 → 35**. 그 외 컬럼 변경 없음.
+- `GameData.xlsx`도 같이 수정됨. 에디터에서 `MD_DATA`, `SK_MONSTER` DataTable **Reimport** 필요.
+- `02_design/data_specification.md`에는 두 값이 적혀 있지 않아(ENC_DATA 보스 행만 있음) 수정 없음.
+
+### 영향받는 산출 문서
+
+- `02_design/interface_specification.md` — §2 `GetSkillCost`, §4 `GetCombatantDisplayName`, §8 `RebuildSkillList`/`RebuildTargetList`/`RebuildCoreList`/`TurnQueueUI::RefreshQueue`/`BattleHUD::RefreshStatusText`, §9 `GetActiveBattleManager`.
+- `03_test.md` — TC-15~TC-18 추가(NFR-08 스킬·대상·코어 라벨, FR-16 턴 순서·HUD 이름), TC-09의 `(Locked)` → `(잠김)`.
+- 클래스 다이어그램: `URPGSkillComponent`, `ARPGBattleManager`, `ARPGPlayerController`에 위 public 메서드 3개 추가. 시퀀스 다이어그램: `RebuildTargetList` → `GetActiveBattleManager` → `GetCombatantDisplayName` 메시지 추가.
+
+---
+
 ## 2026-11-15 (3차) — 동료 턴 코어 교체 버그
 
 ### 버그 수정

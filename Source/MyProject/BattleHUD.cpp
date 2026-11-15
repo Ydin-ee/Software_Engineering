@@ -108,6 +108,15 @@ void UBattleHUD::HandleBattleStateChanged(ERPGBattleState NewState)
         }
     }
 
+    // Turn-order list is only meaningful during a battle: hidden back on the field (State_Wait,
+    // reached after a victory's return trip), shown again from the next battle's first state.
+    if (TurnQueueWidget)
+    {
+        TurnQueueWidget->SetVisibility(NewState == ERPGBattleState::State_Wait
+            ? ESlateVisibility::Collapsed
+            : ESlateVisibility::Visible);
+    }
+
     // Tutorial guide text: visible only while a tutorial battle is actually in progress
     // (turn calc / player turn / enemy turn), collapsed in Wait and BattleEnd (NFR-08).
     if (TutorialText)
@@ -143,7 +152,7 @@ void UBattleHUD::RefreshStatusText()
             if (Player && Player->StatComponent)
             {
                 Lines += FString::Printf(TEXT("%s HP: %d/%d\n"),
-                    *Player->GetName(), Player->StatComponent->CurrentHP, Player->StatComponent->MonsterStat.MaxHP);
+                    *BoundBattleManager->GetCombatantDisplayName(Player), Player->StatComponent->CurrentHP, Player->StatComponent->MonsterStat.MaxHP);
             }
         }
         PartyStatusText->SetText(FText::FromString(Lines));
@@ -157,7 +166,7 @@ void UBattleHUD::RefreshStatusText()
             if (Monster && Monster->StatComponent)
             {
                 Lines += FString::Printf(TEXT("%s HP: %d/%d\n"),
-                    *Monster->GetName(), Monster->StatComponent->CurrentHP, Monster->StatComponent->MonsterStat.MaxHP);
+                    *BoundBattleManager->GetCombatantDisplayName(Monster), Monster->StatComponent->CurrentHP, Monster->StatComponent->MonsterStat.MaxHP);
             }
         }
         EnemyStatusText->SetText(FText::FromString(Lines));

@@ -58,6 +58,11 @@ public:
     UFUNCTION(BlueprintPure, Category = "RPG|Battle")
     bool IsMyTurn() const { return ActiveBattleManager != nullptr; }
 
+    // Read access for UI (UCommandMenu) that needs battle-wide lookups such as
+    // ARPGBattleManager::GetCombatantDisplayName. Null outside this player's turn.
+    UFUNCTION(BlueprintPure, Category = "RPG|Battle")
+    ARPGBattleManager* GetActiveBattleManager() const { return ActiveBattleManager; }
+
     UPROPERTY(BlueprintReadOnly, Category = "RPG|Battle")
     TArray<AActor*> PossibleTargets;
 

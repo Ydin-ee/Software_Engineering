@@ -47,7 +47,12 @@ void UTurnQueueUI::RefreshQueue(const TArray<ARPGCharacterBase*>& Queue, int32 C
 
         UTextBlock* Row = NewObject<UTextBlock>(this);
         const FString Prefix = (Index == CurrentIndex) ? TEXT("-> ") : TEXT("   ");
-        Row->SetText(FText::FromString(Prefix + Combatant->GetName()));
+        // Data-table name (PC_DATA Name / MD_DATA MonsterName, numbered for duplicates) per FR-16;
+        // the raw actor name only when RefreshQueue is driven without a bound battle manager.
+        const FString DisplayName = BoundBattleManager
+            ? BoundBattleManager->GetCombatantDisplayName(Combatant)
+            : Combatant->GetName();
+        Row->SetText(FText::FromString(Prefix + DisplayName));
         QueueContainer->AddChildToVerticalBox(Row);
     }
 }

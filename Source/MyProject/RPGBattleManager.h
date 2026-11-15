@@ -113,6 +113,13 @@ public:
     UFUNCTION(BlueprintCallable, Category = "RPG|Battle")
     TArray<AActor*> GetLivingEnemyTargets() const;
 
+    // Player-facing name for UI (FR-16): party members show PC_DATA Name, monsters show
+    // MD_DATA MonsterName. When the same MonsterID appears more than once in EnemyParty the
+    // name gets " 1", " 2", ... by EnemyParty order (dead ones keep their number), so the
+    // command menu, turn queue and HUD all agree. Falls back to GetName() without stat data.
+    UFUNCTION(BlueprintCallable, Category = "RPG|Battle")
+    FString GetCombatantDisplayName(const ARPGCharacterBase* Combatant) const;
+
     // --- UI hooks ---
 
     UPROPERTY(BlueprintAssignable, Category = "RPG|Battle")

@@ -1,12 +1,31 @@
 #include "CommandMenu.h"
 #include "RPGPlayerController.h"
 #include "PlayerCharacter.h"
+#include "RPGCharacterBase.h"
+#include "RPGBattleManager.h"
 #include "RPGSkillComponent.h"
+#include "RPGStatComponent.h"
 #include "RPGDataManager.h"
 #include "Components/VerticalBox.h"
 #include "Components/TextBlock.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
+
+// Korean UI copy is written as \u escapes so these ASCII source files stay free of
+// code-page issues under MSVC. The English meaning is noted next to each literal.
+static const TCHAR* LockedSuffix = TEXT(" (\uC7A0\uAE40)");   // " (Locked)"
+static const TCHAR* NoneAffinity = TEXT("\uC5C6\uC74C");     // "None"
+
+// Weak/Resist text from MD_DATA/PC_DATA as shown to the player: empty or "None" -> "None" (Korean).
+static FString FormatAffinityForLabel(const FString& Affinity)
+{
+    const FString Trimmed = Affinity.TrimStartAndEnd();
+    if (Trimmed.IsEmpty() || Trimmed.Equals(TEXT("None"), ESearchCase::IgnoreCase))
+    {
+        return NoneAffinity;
+    }
+    return Trimmed;
+}
 
 void USkillCommandButton::HandleClicked()
 {
@@ -91,8 +110,28 @@ void UCommandMenu::RebuildSkillList()
         Button->OwningMenu = this;
         Button->SetIsEnabled(bUnlocked && bAffordable);
 
+        // "<SkillName> [<Element>] SP 10" / "HP 16" (actual deduction), no cost text for None.
+        // Everything comes from SK_DATA; the ID is only a fallback when the row is missing.
+        FString LabelText = SkillID.ToString();
+        FSkillDataRow SkillData;
+        if (DataManager && DataManager->GetSkillData(SkillID, SkillData))
+        {
+            LabelText = FString::Printf(TEXT("%s [%s]"), *SkillData.SkillName.ToString(), *SkillData.ElementType.ToString());
+
+            const bool bHasCost = SkillData.CostType == FName(TEXT("SP")) || SkillData.CostType == FName(TEXT("HP"));
+            if (bHasCost)
+            {
+                LabelText += FString::Printf(TEXT(" %s %d"), *SkillData.CostType.ToString(),
+                    ActingCharacter->SkillComponent->GetSkillCost(SkillData));
+            }
+        }
+        if (!bUnlocked)
+        {
+            LabelText += LockedSuffix; // " (Locked)"
+        }
+
         UTextBlock* Label = NewObject<UTextBlock>(this);
-        Label->SetText(FText::FromString(bUnlocked ? SkillID.ToString() : SkillID.ToString() + TEXT(" (Locked)")));
+        Label->SetText(FText::FromString(LabelText));
         Button->AddChild(Label);
 
         Button->OnClicked.AddDynamic(Button, &USkillCommandButton::HandleClicked);
@@ -109,6 +148,8 @@ void UCommandMenu::RebuildTargetList()
 
     TargetListContainer->ClearChildren();
 
+    const ARPGBattleManager* BattleManager = BoundController ? BoundController->GetActiveBattleManager() : nullptr;
+
     for (AActor* Target : PossibleTargets)
     {
         if (!Target)
@@ -120,8 +161,28 @@ void UCommandMenu::RebuildTargetList()
         Button->TargetActor = Target;
         Button->OwningMenu = this;
 
+        // "<MonsterName [n]> HP <cur>/<max> Weak:<Weak> Resist:<Resist>" from MD_DATA via the
+        // target's StatComponent (NFR-08). Non-RPG actors keep the raw actor name.
+        FString LabelText = Target->GetName();
+        if (const ARPGCharacterBase* TargetCharacter = Cast<ARPGCharacterBase>(Target))
+        {
+            if (TargetCharacter->StatComponent)
+            {
+                const FMonsterDataRow& Stat = TargetCharacter->StatComponent->MonsterStat;
+                const FString DisplayName = BattleManager
+                    ? BattleManager->GetCombatantDisplayName(TargetCharacter)
+                    : Stat.MonsterName.ToString();
+
+                LabelText = FString::Printf(TEXT("%s HP %d/%d \uC57D\uC810:%s \uB0B4\uC131:%s"), // "<name> HP cur/max Weak:<w> Resist:<r>"
+                    *DisplayName,
+                    TargetCharacter->StatComponent->CurrentHP, Stat.MaxHP,
+                    *FormatAffinityForLabel(Stat.Weak),
+                    *FormatAffinityForLabel(Stat.Resist));
+            }
+        }
+
         UTextBlock* Label = NewObject<UTextBlock>(this);
-        Label->SetText(FText::FromString(Target->GetName()));
+        Label->SetText(FText::FromString(LabelText));
         Button->AddChild(Label);
 
         Button->OnClicked.AddDynamic(Button, &UTargetCommandButton::HandleClicked);
@@ -170,8 +231,20 @@ void UCommandMenu::RebuildCoreList()
         Button->OwningMenu = this;
         Button->SetIsEnabled(bUnlocked);
 
+        // CD_DATA CoreName, with the ID only as a fallback when the row has no name.
+        FString LabelText = CoreID.ToString();
+        FCoreDataRow CoreData;
+        if (DataManager->GetCoreData(CoreID, CoreData) && !CoreData.CoreName.IsNone())
+        {
+            LabelText = CoreData.CoreName.ToString();
+        }
+        if (!bUnlocked)
+        {
+            LabelText += LockedSuffix; // " (Locked)"
+        }
+
         UTextBlock* Label = NewObject<UTextBlock>(this);
-        Label->SetText(FText::FromString(bUnlocked ? CoreID.ToString() : CoreID.ToString() + TEXT(" (Locked)")));
+        Label->SetText(FText::FromString(LabelText));
         Button->AddChild(Label);
 
         Button->OnClicked.AddDynamic(Button, &UCoreCommandButton::HandleClicked);

@@ -42,13 +42,18 @@ int32 UDamageCalculator::CalculateFinalDamage(AActor* Attacker, AActor* Defender
     float RawDamage = static_cast<float>(SkillData.Power) + (AttackPower * 0.5f) - (DefStat.END * 0.5f);
     RawDamage = FMath::Max(1.0f, RawDamage);
 
+    // One log line per applied modifier so playtests (TC-01~03) can tell which path a hit took.
     if (IsElementListed(DefStat.Weak, SkillData.ElementType))
     {
         RawDamage *= 1.5f;
+        UE_LOG(LogTemp, Warning, TEXT("[Damage] WEAK: %s hit %s with %s (%s) x1.5"),
+            *AttackerCharacter->GetName(), *DefenderCharacter->GetName(), *SkillData.SkillName.ToString(), *SkillData.ElementType.ToString());
     }
     else if (IsElementListed(DefStat.Resist, SkillData.ElementType))
     {
         RawDamage *= 0.5f;
+        UE_LOG(LogTemp, Warning, TEXT("[Damage] RESIST: %s hit %s with %s (%s) x0.5"),
+            *AttackerCharacter->GetName(), *DefenderCharacter->GetName(), *SkillData.SkillName.ToString(), *SkillData.ElementType.ToString());
     }
 
     // BaseCrit from CSV is a ratio (0.05 = 5%); convert to percentage points to compare against the 0~100 roll.
@@ -56,7 +61,8 @@ int32 UDamageCalculator::CalculateFinalDamage(AActor* Attacker, AActor* Defender
     if (FMath::FRandRange(0.f, 100.f) < CritChance)
     {
         RawDamage *= 1.5f;
-        UE_LOG(LogTemp, Warning, TEXT("[Damage] %s landed a critical hit!"), *AttackerCharacter->GetName());
+        UE_LOG(LogTemp, Warning, TEXT("[Damage] CRITICAL: %s hit %s with %s x1.5 (chance %.1f%%)"),
+            *AttackerCharacter->GetName(), *DefenderCharacter->GetName(), *SkillData.SkillName.ToString(), CritChance);
     }
 
     return FMath::Max(1, FMath::RoundToInt(RawDamage));

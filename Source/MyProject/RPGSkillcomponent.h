@@ -30,6 +30,12 @@ public:
     UFUNCTION(BlueprintCallable, Category = "RPG|Skill")
     bool CanAffordSkill(FName SkillID) const;
 
+    // The actual amount a skill costs its owner: SP -> RoundToInt(CostValue),
+    // HP -> RoundToInt(CostValue * owner's MaxHP), None/other -> 0. Single formula shared by
+    // CanAffordSkill, ExecuteSkill and UCommandMenu's skill labels so they can never disagree.
+    UFUNCTION(BlueprintCallable, Category = "RPG|Skill")
+    int32 GetSkillCost(const FSkillDataRow& SkillData) const;
+
     UPROPERTY(BlueprintAssignable, Category = "RPG|Skill")
     FOnSkillResolved OnSkillResolved;
 };

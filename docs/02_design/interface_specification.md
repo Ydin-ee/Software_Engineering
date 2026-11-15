@@ -13,7 +13,7 @@
 
 | 함수 | 파라미터 | 반환값 | 설명 |
 |---|---|---|---|
-| `CalculateFinalDamage` | `AActor* Attacker, AActor* Defender, const FSkillDataRow& SkillData` | `int32` | 최종 데미지 계산. `SkillData.ElementType`이 `Slash`/`Strike`면 `AtkStat.STR`, 그 외(원소 스킬)는 `AtkStat.MAG`로 공격력을 산출한다. 기본 데미지 `Max(1, Power + 공격력×0.5 − 방어 END×0.5)`, `Weak`/`Resist` 매칭(×1.5 / ×0.5, 둘 다면 약점만), 크리티컬(×1.5)을 순서대로 적용. 반환은 `Max(1, Round(데미지))`, 잘못된 입력이면 0. |
+| `CalculateFinalDamage` | `AActor* Attacker, AActor* Defender, const FSkillDataRow& SkillData` | `int32` | 최종 데미지 계산. `SkillData.ElementType`이 `Slash`/`Strike`면 `AtkStat.STR`, 그 외(원소 스킬)는 `AtkStat.MAG`로 공격력을 산출한다. 기본 데미지 `Max(1, Power + 공격력×0.5 − 방어 END×0.5)`, `Weak`/`Resist` 매칭(×1.5 / ×0.5, 둘 다면 약점만), 크리티컬(×1.5)을 순서대로 적용. 반환은 `Max(1, Round(데미지))`, 잘못된 입력이면 0. **2026-11-15 (5차, 테스트용 로그)**: 약점/내성/크리티컬이 적용될 때 각각 `[Damage] WEAK: …`, `[Damage] RESIST: …`, `[Damage] CRITICAL: …` 한 줄을 `LogTemp` Warning으로 남긴다(공격자·대상·스킬·배율, 크리티컬은 확률도). 시그니처·델리게이트 변경 없음. |
 | `CheckEvasion` | `int32 AtkSPD, int32 DefSPD, int32 AtkLUK, int32 DefLUK` | `bool` | SPD/LUK 차이 기반 회피 판정. `Clamp(5 + (DefSPD−AtkSPD)×0.5 + (DefLUK−AtkLUK)×0.3, 0, 75)`을 0~100 롤과 비교. |
 | `IsElementListed` | `const FString& CommaList, FName ElementType` | `bool` | 쉼표로 구분된 속성 목록(Weak/Resist)에 `ElementType`이 포함되는지 확인. |
 
@@ -26,9 +26,11 @@
 | 함수 | 파라미터 | 반환값 | 설명 |
 |---|---|---|---|
 | `ExecuteSkill` | `AActor* Target, FName SkillID` | `bool` | 실행 순서: `AvailableSkills` 포함 확인 → 데이터 조회(몬스터는 SK_MONSTER, 플레이어는 SK_DATA) → 해금 확인(`IsSkillUnlocked`, 플레이어만) → **비용 확인(`CanAffordSkill`, 플레이어만)** → 비용 차감 → `CheckEvasion` → `CalculateFinalDamage` → `TakeRPGDamage` → (대상이 몬스터면) `AddAggro` → `OnSkillResolved` 브로드캐스트. 회피되면 `OnSkillResolved(Target, 0, true)` 후 true. |
-| `CanAffordSkill` | `FName SkillID` | `bool` | **(신규, 2026-11-15)** 비용 충분 판정의 단일 기준. 몬스터 소유자면 항상 true. SK_DATA에서 행을 못 찾으면 false(fail-closed). `CostType == "SP"`: `CurrentSP >= RoundToInt(CostValue)`. `CostType == "HP"`: `CurrentHP > RoundToInt(CostValue × MaxHP)` — **같으면 부족**(사용 시 시전자가 쓰러짐). `None`/그 외: true. |
+| `CanAffordSkill` | `FName SkillID` | `bool` | **(신규, 2026-11-15)** 비용 충분 판정의 단일 기준. 몬스터 소유자면 항상 true. SK_DATA에서 행을 못 찾으면 false(fail-closed). `CostType == "SP"`: `CurrentSP >= GetSkillCost`. `CostType == "HP"`: `CurrentHP > GetSkillCost` — **같으면 부족**(사용 시 시전자가 쓰러짐). `None`/그 외: true. |
+| `GetSkillCost` | `const FSkillDataRow& SkillData` | `int32` | **(신규, 2026-11-15, 4차)** 스킬의 실제 소모량. `SP` → `RoundToInt(CostValue)`, `HP` → `RoundToInt(CostValue × 소유자 MonsterStat.MaxHP)`, `None`/그 외 → 0. `CanAffordSkill`(판정), `ExecuteSkill`(차감), `UCommandMenu::RebuildSkillList`(라벨 "HP 16")가 모두 이 함수를 쓴다. |
 
 **2026-11-15 변경 (FR-07)**: `ExecuteSkill`의 비용 검사가 `CanAffordSkill`을 호출하도록 통일. 이전엔 HP를 `CurrentHP < HPCost`로 검사해 HP와 비용이 같을 때 실행이 허용됐다. 비용 차감 로직은 그대로.
+**2026-11-15 변경 (4차)**: 두 곳에 중복돼 있던 비용 계산식을 `GetSkillCost`로 묶음. 판정·차감 결과는 동일.
 
 ---
 
@@ -57,7 +59,10 @@
 | `StartCurrentActorTurn` *(private)* | — | `void` | 아군 차례면 `UGameplayStatics::GetPlayerController(GetWorld(), 0)`을 `ARPGPlayerController`로 캐스팅해 `BeginSkillSelection`을 호출한다(레벨 배치 동료도 같은 컨트롤러가 명령, FR-06). 못 찾으면 로그 후 `AdvanceTurn`. |
 | `HandleVictory` *(private)* | — | `void` | 생존 아군에 EXP 지급 → 적 제거 → **매 승리마다 `SaveProgress(플레이어 폰의 EquippedCoreID, 0)`** (FR-15, ClearedStage는 기존 Max 보정으로 유지) → 보스전이면 `HandleStageCleared(BossStageNumber)` → 튜토리얼 전투면 `SaveTutorialCleared()` → `ReturnPartyToField()`. 튜토리얼 판별은 `ReturnPartyToField`가 `PendingSourceEncounter`를 비우기 전에 한다. |
 | `HandleStageCleared` *(private)* | `int32 ClearedStageNumber` | `void` | `SaveProgress(플레이어 폰의 EquippedCoreID, ClearedStageNumber)`. 이어지는 동료 합류(`SpawnCompanion`)는 확장 기능이며, PC_002가 이미 파티에 있으면 아무 일도 하지 않는다. |
+| `CheckBattleEnd` *(private)* | — | `bool` | 아군 또는 적이 전멸하면 승리 시 `HandleVictory()` 후 **`SetBattleState(State_BattleEnd)`**, 패배 시 `State_BattleEnd`만 설정하고 true. `HandleVictory`는 필드 복귀를 타이머로 예약만 하므로 `State_BattleEnd` 설정이 복귀보다 먼저 일어난다. |
+| `ReturnPartyToField` / `FinishReturnToField` *(private)* | — | `void` | 승리 시에만 호출. `ReturnPartyToField`가 페이드 아웃 후 `FadeDuration` 타이머로 `FinishReturnToField`를 예약. `FinishReturnToField`는 파티를 필드 위치로 되돌리고 인카운터를 제거, 페이드 인·입력 복구. **2026-11-15 (5차, FR-02/FR-17)**: 끝에 `TurnQueue.Reset()`, `CurrentTurnIndex = 0`, `OnTurnQueueChanged.Broadcast()` 후 **`SetBattleState(State_Wait)`**. 이전엔 복귀 후에도 `State_BattleEnd`가 남아 VICTORY 문구와 턴 순서 UI가 필드에 계속 보였다. 패배는 이 경로를 타지 않으므로 `State_BattleEnd` 유지(게임오버 UI는 범위 밖). |
 | `GetPlayerPawnEquippedCoreID` *(private)* | — | `FName` | **(신규, 2026-11-15)** `UGameplayStatics::GetPlayerPawn(GetWorld(), 0)`을 `APlayerCharacter`로 캐스팅해 `EquippedCoreID`를 반환. `PlayerParty[0]`은 순서가 보장되지 않아 코어 없는 동료가 저장될 수 있으므로 쓰지 않는다. |
+| `GetCombatantDisplayName` | `const ARPGCharacterBase* Combatant` | `FString` | **(신규, 2026-11-15, 4차, FR-16)** UI에 표시할 이름. `StatComponent->MonsterStat.MonsterName`(아군은 PC_DATA `Name`, 적은 MD_DATA `MonsterName`)을 쓴다. 적은 `EnemyParty`에 같은 `MonsterID`가 2마리 이상이면 `EnemyParty` 순서로 `" 1"`, `" 2"`를 붙인다(죽은 개체도 번호 유지). 스탯이 없거나 이름이 `None`이면 `GetName()`으로 폴백. 커맨드 메뉴·턴 순서·HUD가 모두 이 함수를 써서 번호가 일치한다. |
 
 **2026-11-15 변경**:
 - `StartCurrentActorTurn`: `Player->GetController()` → `GetPlayerController(0)` (동료 턴 스킵 버그 수정).
@@ -105,16 +110,20 @@
 
 ---
 
-## 8. UCommandMenu / UBattleHUD (CommandMenu.cpp, BattleHUD.h/.cpp)
+## 8. UCommandMenu / UTurnQueueUI / UBattleHUD (CommandMenu.cpp, TurnQueueUI.cpp, BattleHUD.h/.cpp)
 
 | 멤버/함수 | 설명 |
 |---|---|
-| `UCommandMenu::RebuildSkillList` *(private)* | 행동 캐릭터의 `AvailableSkills`로 버튼을 만든다. **2026-11-15 (FR-07)**: 버튼 활성 조건을 `IsSkillUnlocked && CanAffordSkill`로 변경. 비용 부족 스킬은 잠긴 스킬처럼 `SetIsEnabled(false)`만 하고 라벨은 바꾸지 않는다. |
-| `UCommandMenu::RebuildCoreList` *(private)* | `CoreListContainer`에 모든 코어 버튼을 만든다(잠긴 코어는 "(Locked)" 비활성). 이번 턴에 이미 교체했으면(`bHasChangedCoreThisTurn`) 비워 둔다. **2026-11-15 (FR-10)**: 행동 캐릭터의 `EquippedCoreID`가 `None`(동료, PC_002)이면 목록을 만들지 않고 비워 둔다. 코어 교체는 기본 코어가 있는 캐릭터(PC_001)만 가능. |
+| `UCommandMenu::RebuildSkillList` *(private)* | 행동 캐릭터의 `AvailableSkills`로 버튼을 만든다. **2026-11-15 (FR-07)**: 버튼 활성 조건을 `IsSkillUnlocked && CanAffordSkill`로 변경. 비용 부족 스킬은 `SetIsEnabled(false)`만 하고 라벨은 비용 때문에 바꾸지 않는다. **2026-11-15 (4차, NFR-08)**: 라벨을 SK_DATA 기준 `"스킬이름 [속성] SP 10"` 형식으로. `CostType`이 `SP`/`HP`일 때만 `" <CostType> <GetSkillCost>"`를 붙이고(HP는 실제 차감량, 예 `HP 16`), `None`이면 비용 생략. 행이 없으면 ID 표시. 잠긴 스킬은 `" (잠김)"` 접미. |
+| `UCommandMenu::RebuildTargetList` *(private)* | `PossibleTargets`로 버튼을 만든다. **2026-11-15 (4차, NFR-08)**: 대상이 `ARPGCharacterBase`고 `StatComponent`가 있으면 라벨을 `"<GetCombatantDisplayName> HP <CurrentHP>/<MaxHP> 약점:<Weak> 내성:<Resist>"`로. `Weak`/`Resist`는 MD_DATA 문자열 그대로(예 `Ice, Strike`), 비어 있거나 `None`이면 `없음`. 배틀 매니저는 `BoundController->GetActiveBattleManager()`로 얻고, 없으면 번호 없는 `MonsterName`. 그 외 액터는 `GetName()`. |
+| `UCommandMenu::RebuildCoreList` *(private)* | `CoreListContainer`에 모든 코어 버튼을 만든다. 이번 턴에 이미 교체했으면(`bHasChangedCoreThisTurn`) 비워 둔다. **2026-11-15 (FR-10)**: 행동 캐릭터의 `EquippedCoreID`가 `None`(동료, PC_002)이면 목록을 만들지 않고 비워 둔다. 코어 교체는 기본 코어가 있는 캐릭터(PC_001)만 가능. **2026-11-15 (4차, NFR-08)**: 라벨을 CD_DATA `CoreName`으로(없으면 ID), 잠긴 코어는 `"코어이름 (잠김)"` 비활성. |
+| *(CommandMenu.cpp 파일 정적)* `LockedSuffix`, `NoneAffinity`, `FormatAffinityForLabel` | **(신규, 2026-11-15, 4차)** 한글 UI 문구(`" (잠김)"`, `"없음"`, `"약점:"`, `"내성:"`)는 소스 파일을 ASCII로 유지하기 위해 `\u` 이스케이프로 쓰고 옆에 영어 주석을 단다. `FormatAffinityForLabel`은 Weak/Resist 문자열을 trim하고 빈 값/`None`을 `없음`으로 바꾼다. |
+| `UTurnQueueUI::RefreshQueue` | 턴 큐를 한 줄씩 표시(현재 턴은 `"-> "` 접두). **2026-11-15 (4차, FR-16)**: `Combatant->GetName()` 대신 `BoundBattleManager->GetCombatantDisplayName`을 쓴다(아군 `주인공`/`동료1`, 적 `훈련용 슬라임 1`). 바인딩된 매니저가 없이 호출되면 기존 `GetName()`. |
+| `UBattleHUD::RefreshStatusText` *(private)* | `PartyStatusText`/`EnemyStatusText`에 `"<이름> HP: cur/max"` 줄을 쌓는다. **2026-11-15 (4차, FR-16)**: 이름을 `GetCombatantDisplayName`으로 통일. |
 | `UBattleHUD::TutorialText` *(UPROPERTY, BindWidgetOptional)* | 튜토리얼 안내 텍스트 위젯. 위젯 블루프린트에 없어도 빌드·실행이 깨지지 않는다. |
 | `UBattleHUD::TutorialMessage` *(UPROPERTY, EditAnywhere FText)* | `TutorialText`에 표시할 문구. 위젯 블루프린트에서 입력(C++ 하드코딩 없음). |
 | `UBattleHUD::InitializeForBattle` | 게임 시작 시 `ARPGPlayerController::BeginPlay`에서 **한 번만** 호출된다. 델리게이트 바인딩 후 `TutorialText`를 Collapsed로 초기화만 한다. |
-| `UBattleHUD::HandleBattleStateChanged` | `OnBattleStateChanged` 수신. `BattleResultText`는 `State_BattleEnd`에서 VICTORY/DEFEAT 표시. **2026-11-15 (NFR-08)**: `TutorialText`는 전투 중 상태(`State_CalculateTurn`/`State_PlayerTurn`/`State_EnemyTurn`)이고 `BoundBattleManager->IsTutorialBattle()`이면 `TutorialMessage`를 넣고 Visible, 그 외(`State_Wait`/`State_BattleEnd`)는 Collapsed. (처음엔 `InitializeForBattle`에서 판정했는데, 그 시점은 전투 전이라 항상 false여서 여기로 옮김.) |
+| `UBattleHUD::HandleBattleStateChanged` | `OnBattleStateChanged` 수신. `BattleResultText`는 `State_BattleEnd`에서 VICTORY/DEFEAT 표시, 그 외 상태(`State_Wait` 포함)는 Collapsed. **2026-11-15 (5차, FR-02/FR-17)**: `TurnQueueWidget`을 `State_Wait`에서 Collapsed, 그 외 상태에서 Visible로 전환한다(승리 후 필드 복귀 시 `FinishReturnToField`가 `State_Wait`로 바꾸면서 숨겨지고, 다음 전투의 `State_CalculateTurn`에서 다시 보임). **2026-11-15 (NFR-08)**: `TutorialText`는 전투 중 상태(`State_CalculateTurn`/`State_PlayerTurn`/`State_EnemyTurn`)이고 `BoundBattleManager->IsTutorialBattle()`이면 `TutorialMessage`를 넣고 Visible, 그 외(`State_Wait`/`State_BattleEnd`)는 Collapsed. (처음엔 `InitializeForBattle`에서 판정했는데, 그 시점은 전투 전이라 항상 false여서 여기로 옮김.) |
 
 ---
 
@@ -123,3 +132,4 @@
 | 함수 | 매개변수 | 반환 | 설명 |
 |---|---|---|---|
 | `RequestChangeCore` | `FName NewCoreID` | `void` | 커맨드 메뉴의 코어 버튼(`OnCoreChosen`)에서 호출. 턴당 1회(`bHasChangedCoreThisTurn`), 턴을 소모하지 않는다. **2026-11-15 (FR-10)**: 행동 캐릭터(`ActingCharacter`)의 `EquippedCoreID`가 `None`이면 경고 로그만 남기고 반환한다. `ChangeCore`를 호출하지 않고 `bHasChangedCoreThisTurn`도 그대로 둔다(교체 횟수 미소모). 성공 시 `ChangeCore` → `bHasChangedCoreThisTurn = true` → `ShowCommandMenu`로 메뉴 재생성. |
+| `GetActiveBattleManager` | — | `ARPGBattleManager*` | **(신규, 2026-11-15, 4차)** `BlueprintPure` 인라인 getter. private `ActiveBattleManager`를 UI(`UCommandMenu::RebuildTargetList`)가 `GetCombatantDisplayName` 호출에 쓸 수 있게 공개한다. 내 턴이 아니면 null. |

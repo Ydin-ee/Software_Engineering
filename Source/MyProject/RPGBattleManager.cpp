@@ -222,6 +222,16 @@ void ARPGBattleManager::FinishReturnToField()
         PC->bShowMouseCursor = false;
         PC->SetInputMode(FInputModeGameOnly());
     }
+
+    // The party is back on the field, so the battle is over for good (FR-02/FR-17). Drop
+    // the stale queue (its monsters were destroyed in HandleVictory) and leave BattleEnd so
+    // UBattleHUD can hide the VICTORY text and the turn-order list. This runs only on
+    // victory; defeat stays in State_BattleEnd (game-over flow is out of scope).
+    TurnQueue.Reset();
+    CurrentTurnIndex = 0;
+    OnTurnQueueChanged.Broadcast();
+
+    SetBattleState(ERPGBattleState::State_Wait);
 }
 
 void ARPGBattleManager::StartBattle(const TArray<ARPGMonsterBase*>& Enemies)
@@ -525,6 +535,47 @@ FName ARPGBattleManager::GetPlayerPawnEquippedCoreID() const
 {
     const APlayerCharacter* PlayerPawn = Cast<APlayerCharacter>(UGameplayStatics::GetPlayerPawn(GetWorld(), 0));
     return PlayerPawn ? PlayerPawn->EquippedCoreID : NAME_None;
+}
+
+FString ARPGBattleManager::GetCombatantDisplayName(const ARPGCharacterBase* Combatant) const
+{
+    if (!Combatant)
+    {
+        return FString();
+    }
+
+    // MonsterStat.MonsterName holds MD_DATA MonsterName for monsters and PC_DATA Name for
+    // players (copied in APlayerCharacter::InitializeCharacterStat).
+    if (!Combatant->StatComponent || Combatant->StatComponent->MonsterStat.MonsterName.IsNone())
+    {
+        return Combatant->GetName();
+    }
+
+    FString DisplayName = Combatant->StatComponent->MonsterStat.MonsterName.ToString();
+
+    if (const ARPGMonsterBase* Monster = Cast<ARPGMonsterBase>(Combatant))
+    {
+        int32 SameIDCount = 0;
+        int32 Ordinal = 0;
+        for (const ARPGMonsterBase* Other : EnemyParty)
+        {
+            if (Other && Other->MonsterID == Monster->MonsterID)
+            {
+                ++SameIDCount;
+                if (Other == Monster)
+                {
+                    Ordinal = SameIDCount;
+                }
+            }
+        }
+
+        if (SameIDCount > 1 && Ordinal > 0)
+        {
+            DisplayName += FString::Printf(TEXT(" %d"), Ordinal);
+        }
+    }
+
+    return DisplayName;
 }
 
 void ARPGBattleManager::HandleStageCleared(int32 ClearedStageNumber)
