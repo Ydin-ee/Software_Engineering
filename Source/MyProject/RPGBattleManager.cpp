@@ -28,7 +28,12 @@ void ARPGBattleManager::BeginPlay()
     Super::BeginPlay();
 
     // Grayboxing: start a battle against whatever monsters are already placed in the
-    // level, rather than requiring a field encounter trigger to exist yet.
+    // level, rather than requiring a field encounter trigger to exist yet. Opt-in only.
+    if (!bAutoStartWithPlacedMonsters)
+    {
+        return;
+    }
+
     TArray<AActor*> FoundMonsters;
     UGameplayStatics::GetAllActorsOfClass(GetWorld(), ARPGMonsterBase::StaticClass(), FoundMonsters);
 
@@ -76,6 +81,11 @@ void ARPGBattleManager::BeginFieldEncounter(FName StageID, FName BattleID, AFiel
     }
 
     PendingSourceEncounter = SourceEncounter;
+
+    // One BattleManager serves every encounter, so boss-ness is per battle: take it from
+    // the trigger and reset it for ordinary encounters so a previous boss flag can't linger.
+    bIsBossBattle = SourceEncounter && SourceEncounter->bIsBossEncounter;
+    BossStageNumber = bIsBossBattle ? SourceEncounter->BossStageNumber : 0;
 
     TArray<FName> MobIDs;
     TArray<int32> Counts;
@@ -316,7 +326,8 @@ void ARPGBattleManager::BuildTurnQueue()
     }
 
     // Highest SPD acts first this round.
-    TurnQueue.Sort([](const ARPGCharacterBase& A, const ARPGCharacterBase& B)
+    // StableSort keeps the gather order (players first) for equal SPD instead of leaving ties arbitrary.
+    TurnQueue.StableSort([](const ARPGCharacterBase& A, const ARPGCharacterBase& B)
     {
         const int32 SpdA = A.StatComponent ? A.StatComponent->MonsterStat.SPD : 0;
         const int32 SpdB = B.StatComponent ? B.StatComponent->MonsterStat.SPD : 0;
@@ -478,19 +489,25 @@ void ARPGBattleManager::HandleVictory()
     }
     EnemyParty.Reset();
 
+    UGameInstance* GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+    URPGDataManager* DataManager = GI ? GI->GetSubsystem<URPGDataManager>() : nullptr;
+
+    // Every victory persists the equipped core (FR-15). ClearedStage 0 here is harmless:
+    // SaveProgress never lets it drop below the value already on disk.
+    if (DataManager)
+    {
+        DataManager->SaveProgress(GetPlayerPawnEquippedCoreID(), 0);
+    }
+
     if (bIsBossBattle)
     {
         HandleStageCleared(BossStageNumber);
     }
 
-    if (IsTutorialBattle())
+    // Must run before ReturnPartyToField(), which clears PendingSourceEncounter.
+    if (DataManager && IsTutorialBattle())
     {
-        // Must run before ReturnPartyToField(), which clears PendingSourceEncounter.
-        UGameInstance* GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
-        if (URPGDataManager* DataManager = GI ? GI->GetSubsystem<URPGDataManager>() : nullptr)
-        {
-            DataManager->SaveTutorialCleared();
-        }
+        DataManager->SaveTutorialCleared();
     }
 
     if (PendingSourceEncounter)
@@ -504,14 +521,19 @@ bool ARPGBattleManager::IsTutorialBattle() const
     return PendingSourceEncounter && PendingSourceEncounter->StageID == FName(TEXT("Tutorial"));
 }
 
+FName ARPGBattleManager::GetPlayerPawnEquippedCoreID() const
+{
+    const APlayerCharacter* PlayerPawn = Cast<APlayerCharacter>(UGameplayStatics::GetPlayerPawn(GetWorld(), 0));
+    return PlayerPawn ? PlayerPawn->EquippedCoreID : NAME_None;
+}
+
 void ARPGBattleManager::HandleStageCleared(int32 ClearedStageNumber)
 {
     UGameInstance* GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
     URPGDataManager* DataManager = GI ? GI->GetSubsystem<URPGDataManager>() : nullptr;
     if (DataManager)
     {
-        const FName CurrentCoreID = (PlayerParty.Num() > 0 && PlayerParty[0]) ? PlayerParty[0]->EquippedCoreID : NAME_None;
-        DataManager->SaveProgress(CurrentCoreID, ClearedStageNumber);
+        DataManager->SaveProgress(GetPlayerPawnEquippedCoreID(), ClearedStageNumber);
     }
 
     // Companion join conditions are hardcoded to the two known join points for now

@@ -24,6 +24,14 @@ public:
     UPROPERTY(EditAnywhere, Category = "RPG|Encounter")
     FName BattleID;
 
+    // Boss encounters start through the same trigger; BeginFieldEncounter copies these onto
+    // the (single) ARPGBattleManager's bIsBossBattle / BossStageNumber for that one battle.
+    UPROPERTY(EditAnywhere, Category = "RPG|Encounter")
+    bool bIsBossEncounter = false;
+
+    UPROPERTY(EditAnywhere, Category = "RPG|Encounter", meta = (EditCondition = "bIsBossEncounter"))
+    int32 BossStageNumber = 0;
+
 protected:
     virtual void BeginPlay() override;
 

@@ -14,6 +14,10 @@ class URPGDataManager : public UGameInstanceSubsystem
 
 public:
     URPGDataManager(); // ������ ����
+
+    // Loads the save slot right after the subsystem comes up so unlock checks and the
+    // protagonist's starting core see restored progress from the first frame (FR-15).
+    virtual void Initialize(FSubsystemCollectionBase& Collection) override;
     // �����Ϳ��� ��� ���� ������ ���̺� ������ ������ ������
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RPG|Data")
     class UDataTable* MonsterDataTable;

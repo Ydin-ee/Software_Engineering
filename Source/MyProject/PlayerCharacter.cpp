@@ -2,6 +2,7 @@
 #include "RPGStatComponent.h"
 #include "RPGSkillComponent.h"
 #include "RPGDataManager.h"
+#include "RPGSaveGame.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 
@@ -51,7 +52,15 @@ void APlayerCharacter::InitializeCharacterStat()
     if (!CharData.EquippedCore.IsNone() && !CharData.EquippedCore.ToString().Equals(TEXT("None"), ESearchCase::IgnoreCase))
     {
         // Core-driven character (e.g. the protagonist): the Core grants the skill list.
-        ChangeCore(CharData.EquippedCore);
+        // A saved core wins over the PC_DATA default when it exists and is still unlocked (FR-15);
+        // companions (EquippedCore = None) never reach this branch, so the save can't leak onto them.
+        FName CoreToEquip = CharData.EquippedCore;
+        const URPGSaveGame* Save = DataManager->CurrentSaveGame;
+        if (Save && !Save->EquippedCoreID.IsNone() && DataManager->IsCoreUnlocked(Save->EquippedCoreID))
+        {
+            CoreToEquip = Save->EquippedCoreID;
+        }
+        ChangeCore(CoreToEquip);
     }
     else if (SkillComponent)
     {

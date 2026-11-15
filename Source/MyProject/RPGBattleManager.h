@@ -73,6 +73,12 @@ public:
     UPROPERTY(EditAnywhere, Category = "RPG|Battle")
     int32 BossStageNumber = 0;
 
+    // Grayboxing aid only: when true, BeginPlay gathers monsters already placed in the level
+    // and starts a battle immediately. Leave false in the real level so placing a monster
+    // doesn't trigger combat on game start - all battles come from AFieldEncounter.
+    UPROPERTY(EditAnywhere, Category = "RPG|Battle")
+    bool bAutoStartWithPlacedMonsters = false;
+
     // --- Field encounters (real-time exploration -> turn-based arena) ---
 
     // Reusable hidden arena every encounter teleports into. Assign explicitly, or leave
@@ -127,6 +133,10 @@ private:
     bool CheckBattleEnd();
     void HandleVictory();
     void HandleStageCleared(int32 ClearedStageNumber);
+
+    // Core to persist: the player pawn's, never PlayerParty[0] (party order isn't
+    // guaranteed, so that could be a core-less companion).
+    FName GetPlayerPawnEquippedCoreID() const;
     void SpawnCompanion(FName CompanionCharacterID);
 
     void TeleportToArenaAndStartBattle(TArray<ARPGMonsterBase*> SpawnedEnemies);

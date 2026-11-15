@@ -190,6 +190,19 @@ void URPGDataManager::SaveTutorialCleared()
     }
 }
 
+void URPGDataManager::Initialize(FSubsystemCollectionBase& Collection)
+{
+    Super::Initialize(Collection);
+
+    // No save slot yet -> CurrentSaveGame stays null and everything reads as a fresh game.
+    if (LoadProgress())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[Save] Progress loaded. Core: %s, ClearedStage: %d, Tutorial: %s"),
+            *CurrentSaveGame->EquippedCoreID.ToString(), CurrentSaveGame->ClearedStage,
+            CurrentSaveGame->bTutorialCleared ? TEXT("cleared") : TEXT("not cleared"));
+    }
+}
+
 bool URPGDataManager::LoadProgress()
 {
     if (!UGameplayStatics::DoesSaveGameExist(RPGSaveSlotName, RPGSaveUserIndex))

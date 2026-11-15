@@ -82,11 +82,14 @@ void UCommandMenu::RebuildSkillList()
     for (const FName& SkillID : ActingCharacter->SkillComponent->AvailableSkills)
     {
         const bool bUnlocked = DataManager && DataManager->IsSkillUnlocked(SkillID);
+        // Unaffordable skills are greyed out like locked ones (label unchanged) so a pick
+        // can never reach ExecuteSkill just to fail there and burn the turn.
+        const bool bAffordable = ActingCharacter->SkillComponent->CanAffordSkill(SkillID);
 
         USkillCommandButton* Button = NewObject<USkillCommandButton>(this);
         Button->SkillID = SkillID;
         Button->OwningMenu = this;
-        Button->SetIsEnabled(bUnlocked);
+        Button->SetIsEnabled(bUnlocked && bAffordable);
 
         UTextBlock* Label = NewObject<UTextBlock>(this);
         Label->SetText(FText::FromString(bUnlocked ? SkillID.ToString() : SkillID.ToString() + TEXT(" (Locked)")));

@@ -33,17 +33,11 @@ void UBattleHUD::InitializeForBattle(ARPGBattleManager* InBattleManager)
         TurnQueueWidget->BindToBattleManager(BoundBattleManager);
     }
 
+    // This runs once at game start (ARPGPlayerController::BeginPlay), before any battle,
+    // so it can only hide the tutorial text; HandleBattleStateChanged decides per battle.
     if (TutorialText)
     {
-        if (BoundBattleManager->IsTutorialBattle())
-        {
-            TutorialText->SetText(TutorialMessage);
-            TutorialText->SetVisibility(ESlateVisibility::Visible);
-        }
-        else
-        {
-            TutorialText->SetVisibility(ESlateVisibility::Collapsed);
-        }
+        TutorialText->SetVisibility(ESlateVisibility::Collapsed);
     }
 
     RefreshStatusText();
@@ -98,22 +92,39 @@ void UBattleHUD::HandleCombatEvent(AActor* Target, int32 DamageAmount, bool bMis
 
 void UBattleHUD::HandleBattleStateChanged(ERPGBattleState NewState)
 {
-    if (!BattleResultText)
+    if (BattleResultText)
     {
-        return;
+        if (NewState == ERPGBattleState::State_BattleEnd)
+        {
+            const bool bAnyPlayerAlive = BoundBattleManager && BoundBattleManager->PlayerParty.ContainsByPredicate(
+                [](APlayerCharacter* P) { return P && !P->bIsDead; });
+
+            BattleResultText->SetText(FText::FromString(bAnyPlayerAlive ? TEXT("VICTORY") : TEXT("DEFEAT")));
+            BattleResultText->SetVisibility(ESlateVisibility::Visible);
+        }
+        else
+        {
+            BattleResultText->SetVisibility(ESlateVisibility::Collapsed);
+        }
     }
 
-    if (NewState == ERPGBattleState::State_BattleEnd)
+    // Tutorial guide text: visible only while a tutorial battle is actually in progress
+    // (turn calc / player turn / enemy turn), collapsed in Wait and BattleEnd (NFR-08).
+    if (TutorialText)
     {
-        const bool bAnyPlayerAlive = BoundBattleManager && BoundBattleManager->PlayerParty.ContainsByPredicate(
-            [](APlayerCharacter* P) { return P && !P->bIsDead; });
+        const bool bInBattle = NewState == ERPGBattleState::State_CalculateTurn
+            || NewState == ERPGBattleState::State_PlayerTurn
+            || NewState == ERPGBattleState::State_EnemyTurn;
 
-        BattleResultText->SetText(FText::FromString(bAnyPlayerAlive ? TEXT("VICTORY") : TEXT("DEFEAT")));
-        BattleResultText->SetVisibility(ESlateVisibility::Visible);
-    }
-    else
-    {
-        BattleResultText->SetVisibility(ESlateVisibility::Collapsed);
+        if (bInBattle && BoundBattleManager && BoundBattleManager->IsTutorialBattle())
+        {
+            TutorialText->SetText(TutorialMessage);
+            TutorialText->SetVisibility(ESlateVisibility::Visible);
+        }
+        else
+        {
+            TutorialText->SetVisibility(ESlateVisibility::Collapsed);
+        }
     }
 }
 

@@ -23,6 +23,13 @@ public:
     UFUNCTION(BlueprintCallable, Category = "RPG|Skill")
     bool ExecuteSkill(AActor* Target, FName SkillID);
 
+    // Single source of truth for the resource-cost check, shared by ExecuteSkill and
+    // UCommandMenu::RebuildSkillList so the menu never offers a skill that would then fail.
+    // SP: CurrentSP >= cost. HP: CurrentHP > cost (equal counts as unaffordable - the
+    // caster would drop). None/other cost types are always affordable. Monsters cast for free.
+    UFUNCTION(BlueprintCallable, Category = "RPG|Skill")
+    bool CanAffordSkill(FName SkillID) const;
+
     UPROPERTY(BlueprintAssignable, Category = "RPG|Skill")
     FOnSkillResolved OnSkillResolved;
 };

@@ -12,6 +12,53 @@ URPGSkillComponent::URPGSkillComponent()
     PrimaryComponentTick.bCanEverTick = false;
 }
 
+bool URPGSkillComponent::CanAffordSkill(FName SkillID) const
+{
+    // Monsters cast for free - no cost check at all.
+    if (Cast<ARPGMonsterBase>(GetOwner()))
+    {
+        return true;
+    }
+
+    ARPGCharacterBase* OwnerCharacter = Cast<ARPGCharacterBase>(GetOwner());
+    if (!OwnerCharacter || !OwnerCharacter->StatComponent)
+    {
+        return false;
+    }
+
+    UGameInstance* GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+    URPGDataManager* DataManager = GI ? GI->GetSubsystem<URPGDataManager>() : nullptr;
+    if (!DataManager)
+    {
+        return false;
+    }
+
+    // Player skills only (SK_DATA). An unknown row fails closed, same as IsSkillUnlocked.
+    FSkillDataRow SkillData;
+    if (!DataManager->GetSkillData(SkillID, SkillData))
+    {
+        return false;
+    }
+
+    const URPGStatComponent* Stat = OwnerCharacter->StatComponent;
+
+    if (SkillData.CostType == FName(TEXT("SP")))
+    {
+        const int32 SPCost = FMath::RoundToInt(SkillData.CostValue);
+        return Stat->CurrentSP >= SPCost;
+    }
+
+    if (SkillData.CostType == FName(TEXT("HP")))
+    {
+        // Strictly greater: paying the exact remaining HP would drop the caster.
+        const int32 HPCost = FMath::RoundToInt(SkillData.CostValue * Stat->MonsterStat.MaxHP);
+        return Stat->CurrentHP > HPCost;
+    }
+
+    // "None" or any other cost type: always affordable.
+    return true;
+}
+
 bool URPGSkillComponent::ExecuteSkill(AActor* Target, FName SkillID)
 {
     if (!AvailableSkills.Contains(SkillID))
@@ -62,31 +109,28 @@ bool URPGSkillComponent::ExecuteSkill(AActor* Target, FName SkillID)
     }
 
     // Resource cost - monsters cast for free. Charged even on a miss (paid on attempt,
-    // not on hit), and blocks the skill entirely if the cost can't be afforded.
+    // not on hit). The affordability rule lives in CanAffordSkill so the command menu
+    // and this check can never disagree.
     if (!bIsMonsterOwner)
     {
         URPGStatComponent* AttackerStat = AttackerCharacter->StatComponent;
 
+        if (!CanAffordSkill(SkillID))
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[Skill] %s cannot afford %s cost for %s (HP %d/%d, SP %d/%d)."),
+                *AttackerCharacter->GetName(), *SkillData.CostType.ToString(), *SkillData.SkillName.ToString(),
+                AttackerStat->CurrentHP, AttackerStat->MonsterStat.MaxHP, AttackerStat->CurrentSP, AttackerStat->MonsterStat.MaxSP);
+            return false;
+        }
+
         if (SkillData.CostType == FName(TEXT("SP")))
         {
             const int32 SPCost = FMath::RoundToInt(SkillData.CostValue);
-            if (AttackerStat->CurrentSP < SPCost)
-            {
-                UE_LOG(LogTemp, Warning, TEXT("[Skill] %s cannot afford SP cost for %s (%d/%d SP)."),
-                    *AttackerCharacter->GetName(), *SkillData.SkillName.ToString(), AttackerStat->CurrentSP, SPCost);
-                return false;
-            }
             AttackerStat->CurrentSP -= SPCost;
         }
         else if (SkillData.CostType == FName(TEXT("HP")))
         {
             const int32 HPCost = FMath::RoundToInt(SkillData.CostValue * AttackerStat->MonsterStat.MaxHP);
-            if (AttackerStat->CurrentHP < HPCost)
-            {
-                UE_LOG(LogTemp, Warning, TEXT("[Skill] %s cannot afford HP cost for %s (%d/%d HP)."),
-                    *AttackerCharacter->GetName(), *SkillData.SkillName.ToString(), AttackerStat->CurrentHP, HPCost);
-                return false;
-            }
             AttackerCharacter->TakeRPGDamage(HPCost, FName(TEXT("SelfCost")));
         }
     }
